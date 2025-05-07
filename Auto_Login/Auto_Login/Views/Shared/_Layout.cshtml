@@ -1,0 +1,144 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@ViewBag.Title - My ASP.NET Application</title>
+    @Styles.Render("~/Content/css")
+    @Scripts.Render("~/bundles/modernizr")
+</head>
+<body>
+    <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-dark bg-dark">
+        <div class="container">
+            @Html.ActionLink("Application name", "Index", "Home", new { area = "" }, new { @class = "navbar-brand" })
+            <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" title="Toggle navigation" aria-controls="navbarSupportedContent"
+                    aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse d-sm-inline-flex justify-content-between">
+                <ul class="navbar-nav flex-grow-1">
+                    <li>@Html.ActionLink("Home", "Index", "Home", new { area = "" }, new { @class = "nav-link" })</li>
+                    <li>@Html.ActionLink("About", "About", "Home", new { area = "" }, new { @class = "nav-link" })</li>
+                    <li>@Html.ActionLink("Contact", "Contact", "Home", new { area = "" }, new { @class = "nav-link" })</li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <hr />
+    <div>
+        <button class="btn btn-primary" id="signInButton">create account / sign in / GOOGLE</button>
+    </div>
+    <hr />
+    <div>
+        <button class="btn-success" id="facebooklogin">create account / sign in / Facebook </button>
+    </div>
+    <hr />
+    <div>
+        <button class="btn btn-danger" id="signOutButton">sign out</button>
+    </div>
+    <hr />
+    <div id="message">
+        <p>Oturum açtınız <br /> kullanıcı adı: <span id="userName"></span> <br /> e posta: <span id="mail"></span></p>
+
+    </div>
+
+
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
+        import {
+            getAuth, FacebookAuthProvider, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+        } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
+
+        // TODO: Add SDKs for Firebase products that you want to use
+        // https://firebase.google.com/docs/web/setup#available-libraries
+
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyB_N8PzFucHWfmwuIvSILofJLfHWV588MQ",
+            authDomain: "autologin-a9d47.firebaseapp.com",
+            projectId: "autologin-a9d47",
+            storageBucket: "autologin-a9d47.appspot.com",
+            messagingSenderId: "483065758524",
+            appId: "1:483065758524:web:a350bee514186b124f5439"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth();
+        const provider = new GoogleAuthProvider();
+        const provider2 = new FacebookAuthProvider();
+
+
+        const signInButton = document.getElementById("signInButton");
+        const signOutButton = document.getElementById("signOutButton");
+        const message = document.getElementById("message");
+        const userName = document.getElementById("userName");
+        const email = document.getElementById("mail");
+        const facebook = document.getElementById("facebooklogin");
+
+
+        const userSignIn = async () => {
+            signInWithPopup(auth, provider)
+                .then((result) => {
+                    const user = result.user
+                    console.log(user);
+                }).catch((error) => {
+                    const errorCode = error.code;
+                    const errorMessage = error.message;
+                })
+        }
+
+        const userSignIn2 = async () => {
+            signInWithPopup(auth, provider2)
+                .then((result) => {
+                    const user = result.user
+                    const credential = FacebookAuthProvider.credentialFromResult(result);
+                    const accessToken = credential.accessToken;
+
+                    console.log(user)
+                }).catch((error) => {
+                    const errorCode = error.code;
+                    const errorMessage = error.message;
+                    const email = error.customData.email;
+                    const credential = FacebookAuthProvider.credentialFromError(error);
+
+                })
+        }
+
+        const userSignOut = async () => {
+            signOut(auth).then(() => {
+                alert("başarıyla çıkış yapıldı.");
+            }).catch((error) => { })
+        }
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                signOutButton.style.display = "block";
+                message.style.display = "block";
+                userName.innerHTML = user.displayName;
+                email.innerHTML = user.email;
+            } else {
+                signOutButton.style.display = "none";
+                message.style.display = "none";
+
+            }
+        })
+
+        signInButton.addEventListener('click', userSignIn);
+        signOutButton.addEventListener('click', userSignOut);
+        facebook.addEventListener('click', userSignIn2);
+
+
+    </script>
+
+    <div class="container body-content">
+        @RenderBody()
+
+    </div>
+
+    @Scripts.Render("~/bundles/jquery")
+    @Scripts.Render("~/bundles/bootstrap")
+    @RenderSection("scripts", required: false)
+</body>
+</html>
