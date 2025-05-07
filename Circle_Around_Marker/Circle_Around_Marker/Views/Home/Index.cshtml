@@ -1,0 +1,114 @@
+﻿@{
+    ViewBag.Title = "Home Page";
+}
+
+@*<h2>Google Maps</h2>
+
+    <div id="map" style="height: 500px; width: 100%;"></div>
+    <input type="text" id="distance" placeholder="Mesafe (metre)">
+    <button id="addCircle">Ekle</button>
+    <button id="saveCircle">Kaydet</button>
+    <ul id="circleList"></ul>*@
+
+<h2>Google Maps</h2>
+
+<div id="map" style="height: 500px; width: 100%;"></div>
+<input type="text" id="distance" placeholder="Mesafe (metre)">
+<button id="addCircle">Ekle</button>
+<hr />
+<div id="circleInfo"></div>
+
+@section Scripts {
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD4BSKDqR6e_afPWZgSpd3O95b-0nIfFI4&callback=initMap" async defer></script>
+    <script src="map.js"></script>
+    <script>
+        var map;
+        var marker;
+        var circles = [];
+        var selectedCircle = null;
+        var circleCount = 0;
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 36.997, lng: 35.644 },
+                zoom: 13
+            });
+
+            //Haritaya tıklama işlemi
+            map.addListener('click', function (e) {
+                placeMarkerAndPanTo(e.latLng, map);
+            });
+        }
+
+        //Marker yerleştirme ve haritayı konuma taşıma işlemi
+        function placeMarkerAndPanTo(latLng, map) {
+            if (marker) {
+                marker.setMap(null);//önceki markerı kaldırır
+            }
+            marker = new google.maps.Marker({
+                position: latLng,
+                map: map
+            });
+            map.panTo(latLng);// Haritayı yeni markerın konumuna taşır
+        }
+
+
+        // Daire ekleme işlemi
+        document.getElementById('addCircle').addEventListener('click', function () {
+            var distance = parseInt(document.getElementById('distance').value);
+            if (isNaN(distance) || !marker) {
+                alert("Lütfen geçerli bir mesafe girin ve marker'ı yerleştirin.");
+                return;
+            }
+
+            var circle = new google.maps.Circle({
+                map: map,
+                radius: distance,
+                fillColor: '#90EE90', 
+                editable: true
+            });
+
+            circle.bindTo('center', marker, 'position'); // Daireyi markera bağla
+            circles.push(circle);   
+            circleCount++;
+
+            var circleId = 'circle_' + circleCount;
+            var circleInfoDiv = document.getElementById('circleInfo');
+            var circleInfo = '<div id="' + circleId + '"> ID = ' + circleId + ' | İlk Uzaklık = ' +
+                distance + ' metre | Güncel Uzaklık = ' + distance + ' metre</div>';
+            circleInfoDiv.innerHTML += circleInfo;
+
+            // Circle'a tıklama olayı 
+            circle.addListener('click', function () {
+                selectedCircle = circle;
+            });
+
+            // Dairenin büyüklüğü değiştiğinde güncel uzaklığı güncelle
+            circle.addListener('radius_changed', function () {
+                var newRadius = circle.getRadius();
+                document.getElementById(circleId).innerHTML = 'ID = ' + circleId + ' | İlk Uzaklık = ' +
+                    distance + ' metre | Güncel Uzaklık = ' + newRadius + ' metre';
+            });
+
+            // Mouse ile büyütme ve küçültme
+            map.addListener('wheel', function (e) {
+                if (selectedCircle === circle) {
+                    var newRadius = selectedCircle.getRadius() + (e.deltaY < 0 ? 10 : -10);
+                    if (newRadius > 0) {
+                        selectedCircle.setRadius(newRadius);
+                    }
+                    e.preventDefault();
+                }
+            });
+
+            // Sayfanın kaydırmasını devre dışı bırak
+            window.addEventListener('wheel', function (e) {
+                if (selectedCircle === circle) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+        });
+    </script>
+}
+
+

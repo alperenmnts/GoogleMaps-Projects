@@ -1,0 +1,86 @@
+﻿
+@{
+    ViewBag.Title = "Calisan";
+}
+
+
+<h2>Google Maps</h2>
+
+<div id="map" style="height: 500px; width: 100%;"></div>
+<input type="text" id="distance" placeholder="Mesafe (metre)">
+<button id="addCircle">Ekle</button>
+
+@section Scripts {
+
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD4BSKDqR6e_afPWZgSpd3O95b-0nIfFI4&callback=initMap" async defer></script>
+    <script src="map.js"></script>
+    <script>
+        var map;
+        var marker;
+        var circles = [];
+        var selectedCircle = null;
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: -34.397, lng: 150.644 },
+                zoom: 8
+            });
+
+            map.addListener('click', function (e) {
+                placeMarkerAndPanTo(e.latLng, map);
+            });
+        }
+
+        function placeMarkerAndPanTo(latLng, map) {
+            if (marker) {
+                marker.setMap(null);
+            }
+            marker = new google.maps.Marker({
+                position: latLng,
+                map: map
+            });
+            map.panTo(latLng);
+        }
+
+        document.getElementById('addCircle').addEventListener('click', function () {
+            var distance = parseInt(document.getElementById('distance').value);
+            if (isNaN(distance) || !marker) {
+                alert("Lütfen geçerli bir mesafe girin ve marker'ı yerleştirin.");
+                return;
+            }
+
+            var circle = new google.maps.Circle({
+                //id: null,
+                map: map,
+                radius: distance,
+                fillColor: '#90EE90', // Açık yeşil renk
+                editable: true
+            });
+            
+            circle.bindTo('center', marker, 'position');
+            circles.push(circle);
+
+            // Circle'a tıklama olayı ekleyin
+            circle.addListener('click', function () {
+                selectedCircle = circle;
+            });
+        });
+
+        // Mouse tekerleği ile büyütme ve küçültme
+        map.addListener('wheel', function (e) {
+            if (selectedCircle) {
+                var newRadius = selectedCircle.getRadius() + (e.deltaY < 0 ? 10 : -10);
+                if (newRadius > 0) {
+                    selectedCircle.setRadius(newRadius);
+                }
+                e.preventDefault();
+            }
+        });
+
+        // Sayfanın kaydırmasını devre dışı bırak
+        window.addEventListener('wheel', function (e) {
+            if (selectedCircle) {
+                e.preventDefault();
+            }
+        }, { passive: false });</script>
+}
