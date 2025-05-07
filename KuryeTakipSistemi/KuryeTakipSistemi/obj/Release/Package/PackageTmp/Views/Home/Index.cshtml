@@ -1,0 +1,189 @@
+﻿
+@{
+    ViewBag.Title = "Index";
+}
+
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>@ViewBag.Title</title>
+    <style>
+        #map {
+            height: 500px;
+            width: 100%;
+        }
+
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        #control-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 5;
+            background: #fff;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+
+        #coordinates {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            z-index: 5;
+            background: #fff;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+    </style>
+
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD4BSKDqR6e_afPWZgSpd3O95b-0nIfFI4"></script>
+    <script>
+        var map;
+        var marker;
+        var interval; // Marker hareketini kontrol eden interval
+        var mapCenter = { lat: 41.0082, lng: 28.9784 };
+        var markerPosition = { lat: 41.0082, lng: 28.9784 };
+        var targetQueue = []; // Tıklanan noktaları saklayan kuyruk
+        var intervalTime = 20; // Hareketin pürüzsüzlüğü için daha kısa zaman aralığı
+        var tolerance = 0.00015; // Haritanın kenarlarına yaklaştığında merkeze alma toleransı
+        var mapCenterSpeed = 0.03; // Haritanın merkezlenme hızını kontrol eden faktör
+        var fixedSpeed = 0.000001; // Sabit hareket hızı
+        var idleTime = 10000; // Marker hareketsiz kalma süresi (10 saniye)
+        var idleTimeout; // Hareket kontrolü için zamanlayıcı
+
+        // Haritayı başlatan fonksiyon
+        function initMap() {
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: mapCenter,
+                zoom: 19
+            });
+
+            marker = new google.maps.Marker({
+                position: markerPosition,
+                map: map
+            });
+
+            // Haritaya tıklandığında hedef pozisyonu kuyruğa ekle
+            map.addListener('click', function (event) {
+                targetQueue.push(event.latLng);
+                if (!interval) {
+                    interval = setInterval(moveMarker, intervalTime);
+                }
+            });
+
+            updateCoordinates(markerPosition);
+            resetIdleTimeout();
+        }
+
+        // Markerı hedef pozisyona hareket ettiren fonksiyon
+        function moveMarker() {
+            if (targetQueue.length === 0) {
+                clearInterval(interval);
+                interval = null;
+                return;
+            }
+
+            const targetPosition = targetQueue[0];
+            const currentPosition = marker.getPosition();
+            const latDiff = targetPosition.lat() - currentPosition.lat();
+            const lngDiff = targetPosition.lng() - currentPosition.lng();
+            const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
+            const latStep = (latDiff / distance) * fixedSpeed;
+            const lngStep = (lngDiff / distance) * fixedSpeed;
+
+            const newPosition = new google.maps.LatLng(
+                currentPosition.lat() + latStep,
+                currentPosition.lng() + lngStep
+            );
+
+            marker.setPosition(newPosition);
+            updateCoordinates(newPosition);
+
+            // Marker haritanın kenarlarına yaklaşınca haritayı merkeze alma
+            const bounds = map.getBounds(); // harita sınırlarını alır
+            if (bounds) {
+                const ne = bounds.getNorthEast();
+                const sw = bounds.getSouthWest();
+
+                if (newPosition.lat() >= ne.lat() - tolerance || newPosition.lat() <= sw.lat() + tolerance ||
+                    newPosition.lng() >= ne.lng() - tolerance || newPosition.lng() <= sw.lng() + tolerance) {
+                    centerMapSmoothly(newPosition);
+                }
+            }
+
+            // Marker hedefe ulaştıysa kuyruğun başındaki elemanı çıkar
+            if (distance < fixedSpeed) {
+                marker.setPosition(targetPosition);
+                targetQueue.shift();
+            }
+
+            resetIdleTimeout(); // Marker hareket ettiğinde zamanlayıcıyı sıfırla
+        }
+
+        // Haritayı yavaşça merkeze alan fonksiyon
+        function centerMapSmoothly(target) {
+            const currentCenter = map.getCenter();
+            const latDiff = (target.lat() - currentCenter.lat()) * mapCenterSpeed;
+            const lngDiff = (target.lng() - currentCenter.lng()) * mapCenterSpeed;
+            const newCenter = new google.maps.LatLng(
+                currentCenter.lat() + latDiff,
+                currentCenter.lng() + lngDiff
+            );
+            map.setCenter(newCenter);
+
+            // merkezleme işlemi tamamlanmadıysa tekrar çağır
+            if (Math.abs(target.lat() - newCenter.lat()) > 0.0001 || Math.abs(target.lng() - newCenter.lng()) > 0.0001) {
+                setTimeout(() => centerMapSmoothly(target), intervalTime);
+            }
+        }
+
+        // Markerın hareketini durduran fonksiyon
+        function stopMarker() {
+            clearInterval(interval);
+            interval = null;
+            targetQueue = [];
+            map.setCenter(marker.getPosition());
+            updateCoordinates(marker.getPosition());
+        }
+
+        // Koordinatları ekranda gösteren fonksiyon
+        function updateCoordinates(position) {
+            document.getElementById('coordinates').innerText =
+                'Latitude: ' + position.lat().toFixed(5) + ', Longitude: ' + position.lng().toFixed(5);
+        }
+
+        // Marker hareketsiz kaldığında haritayı merkeze al
+        function handleIdleMarker() {
+            const currentCenter = map.getCenter();
+            const markerPosition = marker.getPosition();
+            if (Math.abs(currentCenter.lat() - markerPosition.lat()) > 0.0001 ||
+                Math.abs(currentCenter.lng() - markerPosition.lng()) > 0.0001) {
+                centerMapSmoothly(markerPosition);
+            }
+            resetIdleTimeout(); // Zamanlayıcıyı sıfırla
+        }
+
+        // Zamanlayıcıyı sıfırlayan fonksiyon
+        function resetIdleTimeout() {
+            clearTimeout(idleTimeout);
+            idleTimeout = setTimeout(handleIdleMarker, idleTime);
+        }
+    </script>
+</head>
+<body onload="initMap()">
+    <div id="control-panel">
+        <button onclick="stopMarker()">Durdur</button>
+    </div>
+    <div id="map"></div>
+    <div id="coordinates">Latitude: 41.00820, Longitude: 28.97840</div>
+</body>
+</html>
+
+
+
